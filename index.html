@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gesture Particle Light Interaction</title>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      overflow: hidden;
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 15% 20%, rgba(42, 130, 255, 0.24), transparent 28%),
+        radial-gradient(circle at 82% 30%, rgba(138, 96, 255, 0.2), transparent 30%),
+        radial-gradient(circle at 50% 90%, rgba(0, 229, 255, 0.14), transparent 32%),
+        #040814;
+      color: #f5f8ff;
+    }
+
+    #scene {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      display: block;
+    }
+
+    .glass-panel {
+      position: fixed;
+      left: 28px;
+      top: 28px;
+      width: min(380px, calc(100vw - 56px));
+      padding: 22px;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 28px;
+      background: linear-gradient(135deg, rgba(12, 20, 42, 0.72), rgba(8, 12, 28, 0.44));
+      backdrop-filter: blur(20px);
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
+      z-index: 4;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 11px;
+      border-radius: 999px;
+      font-size: 12px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #b7d6ff;
+      background: rgba(73, 152, 255, 0.12);
+      border: 1px solid rgba(139, 196, 255, 0.18);
+      margin-bottom: 16px;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #60f0ff;
+      box-shadow: 0 0 18px #60f0ff;
+    }
+
+    h1 {
+      font-size: clamp(32px, 5vw, 62px);
+      line-height: 0.95;
+      letter-spacing: -0.06em;
+      margin-bottom: 14px;
+    }
+
+    .gradient-text {
+      background: linear-gradient(90deg, #ffffff, #8bd8ff, #a99cff);
+      -webkit-background-clip: text;
+      color: transparent;
+    }
+
+    .desc {
+      color: rgba(233, 242, 255, 0.76);
+      line-height: 1.65;
+      font-size: 14px;
+      margin-bottom: 18px;
+    }
+
+    .status-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .status-card {
+      min-height: 76px;
+      padding: 14px;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.075);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .label {
+      display: block;
+      color: rgba(222, 234, 255, 0.58);
+      font-size: 12px;
+      margin-bottom: 7px;
+    }
+
+    .value {
+      font-size: 18px;
+      font-weight: 750;
+      color: #ffffff;
+    }
+
+    .hint {
+      position: fixed;
+      right: 28px;
+      bottom: 28px;
+      width: min(430px, calc(100vw - 56px));
+      z-index: 4;
+      padding: 18px 20px;
+      border-radius: 24px;
+      background: rgba(8, 12, 24, 0.58);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      backdrop-filter: blur(18px);
+      color: rgba(236, 246, 255, 0.78);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .hint strong {
+      color: #ffffff;
+    }
+
+    #video {
+      position: fixed;
+      right: 28px;
+      top: 28px;
+      width: 180px;
+      height: 132px;
+      object-fit: cover;
+      border-radius: 24px;
+      transform: scaleX(-1);
+      opacity: 0.42;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      box-shadow: 0 16px 50px rgba(0, 0, 0, 0.35);
+      z-index: 3;
+    }
+
+    .camera-mask {
+      position: fixed;
+      right: 42px;
+      top: 42px;
+      z-index: 5;
+      font-size: 11px;
+      color: rgba(255,255,255,0.72);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      pointer-events: none;
+    }
+
+    .permission {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: rgba(3, 6, 14, 0.82);
+      backdrop-filter: blur(16px);
+    }
+
+    .permission-card {
+      max-width: 520px;
+      padding: 34px;
+      border-radius: 32px;
+      text-align: center;
+      background: linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.045));
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      box-shadow: 0 30px 110px rgba(0, 0, 0, 0.55);
+    }
+
+    .permission-card h2 {
+      font-size: 34px;
+      letter-spacing: -0.04em;
+      margin-bottom: 12px;
+    }
+
+    .permission-card p {
+      color: rgba(239, 246, 255, 0.74);
+      line-height: 1.7;
+      margin-bottom: 24px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 999px;
+      padding: 14px 22px;
+      color: #04111f;
+      font-weight: 800;
+      background: linear-gradient(90deg, #66f2ff, #9ea8ff);
+      cursor: pointer;
+      box-shadow: 0 0 35px rgba(104, 226, 255, 0.38);
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 0 48px rgba(104, 226, 255, 0.5);
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    @media (max-width: 760px) {
+      .glass-panel {
+        left: 16px;
+        top: 16px;
+        padding: 18px;
+      }
+
+      #video,
+      .camera-mask {
+        display: none;
+      }
+
+      .hint {
+        left: 16px;
+        right: 16px;
+        bottom: 16px;
+        width: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="scene"></canvas>
+  <video id="video" playsinline></video>
+  <div class="camera-mask">Live Hand Tracking</div>
+
+  <section class="glass-panel">
+    <div class="eyebrow"><span class="dot"></span> Gesture Particle System</div>
+    <h1><span class="gradient-text">Hand Light</span><br />Particle Field</h1>
+    <p class="desc">优化版：更流畅、更轻量，同时加入光环、扫描线、波纹爆发、星尘尾迹和手势状态切换动效。</p>
+
+    <div class="status-grid">
+      <div class="status-card">
+        <span class="label">当前手势</span>
+        <span class="value" id="gestureText">等待识别</span>
+      </div>
+      <div class="status-card">
+        <span class="label">粒子状态</span>
+        <span class="value" id="modeText">Ambient</span>
+      </div>
+    </div>
+  </section>
+
+  <aside class="hint">
+    <strong>手势说明：</strong>张开手掌 = 爆散扩张；握拳 = 星云收缩；单指 = 激光扫描；双指 = 双涡旋；捏合 = 核心坍缩。没有识别到手时，粒子会回到星空漂浮状态。
+  </aside>
+
+  <div class="permission" id="permission">
+    <div class="permission-card">
+      <h2>开启手势粒子交互</h2>
+      <p>这个页面需要调用摄像头来识别手部动作。识别在浏览器端完成，用于驱动粒子光效变化。</p>
+      <button id="startBtn">启动手部捕捉</button>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('scene');
+    const ctx = canvas.getContext('2d', { alpha: false });
+    const video = document.getElementById('video');
+    const gestureText = document.getElementById('gestureText');
+    const modeText = document.getElementById('modeText');
+    const permission = document.getElementById('permission');
+    const startBtn = document.getElementById('startBtn');
+
+    let width = 0;
+    let height = 0;
+    let dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    let particles = [];
+    let sparks = [];
+    let ripples = [];
+    let hand = null;
+    let gesture = 'none';
+    let previousGesture = 'none';
+    let pointer = { x: innerWidth / 2, y: innerHeight / 2, strength: 0 };
+    let time = 0;
+    let lastGestureUpdate = 0;
+
+    // 比上一版少很多，性能更稳；但靠尾迹、波纹、扫描线增强动效。
+    const PARTICLE_COUNT = window.innerWidth < 760 ? 360 : 620;
+    const SPARK_LIMIT = 90;
+
+    const gestureInfo = {
+      none: { text: '未检测到手', mode: 'Ambient' },
+      open: { text: '张开手掌', mode: 'Burst' },
+      fist: { text: '握拳', mode: 'Collapse' },
+      pinch: { text: '捏合', mode: 'Core Crush' },
+      one: { text: '单指', mode: 'Laser Scan' },
+      two: { text: '双指', mode: 'Twin Vortex' }
+    };
+
+    function resize() {
+      width = window.innerWidth;
+      height = window.innerHeight;
+      dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+      canvas.width = Math.floor(width * dpr);
+      canvas.height = Math.floor(height * dpr);
+      canvas.style.width = width + 'px';
+      canvas.style.height = height + 'px';
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    window.addEventListener('resize', resize);
+    resize();
+
+    function randomBetween(min, max) {
+      return min + Math.random() * (max - min);
+    }
+
+    function spawnRipple(x, y, type = 'normal') {
+      ripples.push({
+        x,
+        y,
+        radius: type === 'pinch' ? 18 : 28,
+        max: type === 'open' ? 360 : type === 'fist' ? 210 : 260,
+        alpha: type === 'pinch' ? 0.75 : 0.48,
+        speed: type === 'open' ? 9 : type === 'fist' ? 5 : 7,
+        type
+      });
+      if (ripples.length > 8) ripples.shift();
+    }
+
+    function spawnSparks(x, y, amount, power = 1) {
+      for (let i = 0; i < amount; i++) {
+        if (sparks.length > SPARK_LIMIT) sparks.shift();
+        const a = randomBetween(0, Math.PI * 2);
+        const s = randomBetween(2.2, 8.4) * power;
+        sparks.push({
+          x,
+          y,
+          vx: Math.cos(a) * s,
+          vy: Math.sin(a) * s,
+          life: randomBetween(18, 42),
+          maxLife: 42,
+          size: randomBetween(1.2, 3.4)
+        });
+      }
+    }
+
+    class Particle {
+      constructor(i) {
+        this.i = i;
+        this.reset(true);
+      }
+
+      reset(initial = false) {
+        const angle = randomBetween(0, Math.PI * 2);
+        const radius = randomBetween(60, Math.max(width, height) * 0.56);
+        this.x = initial ? width / 2 + Math.cos(angle) * radius : randomBetween(0, width);
+        this.y = initial ? height / 2 + Math.sin(angle) * radius : randomBetween(0, height);
+        this.px = this.x;
+        this.py = this.y;
+        this.vx = randomBetween(-0.65, 0.65);
+        this.vy = randomBetween(-0.65, 0.65);
+        this.size = randomBetween(1.0, 2.6);
+        this.baseSize = this.size;
+        this.angle = angle;
+        this.orbit = radius;
+        this.alpha = randomBetween(0.36, 0.98);
+        this.life = randomBetween(0, 1000);
+      }
+
+      update() {
+        this.life += 1;
+        this.px = this.x;
+        this.py = this.y;
+
+        const centerX = pointer.x;
+        const centerY = pointer.y;
+        const dx = centerX - this.x;
+        const dy = centerY - this.y;
+        const dist = Math.sqrt(dx * dx + dy * dy) + 0.001;
+        const nx = dx / dist;
+        const ny = dy / dist;
+        const force = Math.min(1.4, 620 / dist);
+
+        let pull = 0.0005;
+        let swirl = 0.0005;
+        let sizeBoost = 1;
+
+        if (gesture === 'open') {
+          // 张开手：向外爆散，同时轻微旋转。
+          pull = -0.045;
+          swirl = 0.028;
+          sizeBoost = 1.5;
+        } else if (gesture === 'fist') {
+          // 握拳：向掌心收缩成星云。
+          pull = 0.1;
+          swirl = 0.014;
+          sizeBoost = 1.8;
+        } else if (gesture === 'pinch') {
+          // 捏合：更强的核心坍缩。
+          pull = 0.16;
+          swirl = 0.055;
+          sizeBoost = 2.25;
+        } else if (gesture === 'one') {
+          // 单指：把粒子吸到一条波动光束附近。
+          pull = 0.014;
+          swirl = -0.014;
+          sizeBoost = 1.65;
+          const beamY = centerY + Math.sin((this.x - centerX) * 0.02 + time * 0.09) * 58;
+          this.vy += (beamY - this.y) * 0.006;
+          this.vx += (centerX - this.x) * 0.0007;
+        } else if (gesture === 'two') {
+          // 双指：左右两个旋涡中心。
+          const side = Math.sin(this.i * 11.17) > 0 ? -1 : 1;
+          const vortexX = centerX + side * 130;
+          const vdx = vortexX - this.x;
+          const vdy = centerY - this.y;
+          const vd = Math.sqrt(vdx * vdx + vdy * vdy) + 0.001;
+          this.vx += (vdx / vd) * 0.06 * Math.min(1.3, 600 / vd);
+          this.vy += (vdy / vd) * 0.06 * Math.min(1.3, 600 / vd);
+          this.vx += -(vdy / vd) * side * 0.065;
+          this.vy += (vdx / vd) * side * 0.065;
+          sizeBoost = 1.75;
+        } else {
+          // 无手势：星空漂浮，轻量但有空间感。
+          const ambientX = width / 2 + Math.cos(this.angle + time * 0.0012 + this.i) * this.orbit * 0.32;
+          const ambientY = height / 2 + Math.sin(this.angle + time * 0.0015 + this.i) * this.orbit * 0.2;
+          this.vx += (ambientX - this.x) * 0.00055;
+          this.vy += (ambientY - this.y) * 0.00055;
+        }
+
+        if (gesture !== 'none' && gesture !== 'two') {
+          this.vx += nx * pull * force * 16;
+          this.vy += ny * pull * force * 16;
+          this.vx += -ny * swirl * force * 16;
+          this.vy += nx * swirl * force * 16;
+        }
+
+        this.vx += Math.sin(this.life * 0.018 + this.i) * 0.008;
+        this.vy += Math.cos(this.life * 0.016 + this.i) * 0.008;
+        this.vx *= 0.91;
+        this.vy *= 0.91;
+        this.x += this.vx;
+        this.y += this.vy;
+
+        if (this.x < -100 || this.x > width + 100 || this.y < -100 || this.y > height + 100) {
+          this.reset(false);
+        }
+
+        this.size += (this.baseSize * sizeBoost - this.size) * 0.08;
+      }
+
+      draw() {
+        const pulse = 0.62 + Math.sin(this.life * 0.045) * 0.38;
+        const a = Math.max(0.08, Math.min(0.98, this.alpha * pulse));
+
+        // 性能优化：不用每个粒子都创建 RadialGradient，只画核心点 + 运动尾迹。
+        ctx.strokeStyle = `rgba(92, 215, 255, ${a * 0.34})`;
+        ctx.lineWidth = this.size * 0.55;
+        ctx.beginPath();
+        ctx.moveTo(this.px, this.py);
+        ctx.lineTo(this.x, this.y);
+        ctx.stroke();
+
+        ctx.fillStyle = `rgba(225, 248, 255, ${a})`;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    function initParticles() {
+      particles = Array.from({ length: PARTICLE_COUNT }, (_, i) => new Particle(i));
+    }
+
+    initParticles();
+
+    function drawBackground() {
+      ctx.fillStyle = '#040814';
+      ctx.fillRect(0, 0, width, height);
+
+      const cx = width / 2 + Math.sin(time * 0.004) * 120;
+      const cy = height / 2 + Math.cos(time * 0.003) * 80;
+      const bg = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(width, height) * 0.75);
+      bg.addColorStop(0, 'rgba(30, 60, 125, 0.28)');
+      bg.addColorStop(0.45, 'rgba(11, 18, 44, 0.42)');
+      bg.addColorStop(1, 'rgba(4, 8, 20, 1)');
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, width, height);
+    }
+
+    function drawRipples() {
+      for (let i = ripples.length - 1; i >= 0; i--) {
+        const r = ripples[i];
+        r.radius += r.speed;
+        r.alpha *= 0.94;
+        const progress = r.radius / r.max;
+        ctx.strokeStyle = r.type === 'pinch'
+          ? `rgba(255,255,255,${r.alpha})`
+          : `rgba(102,226,255,${r.alpha})`;
+        ctx.lineWidth = r.type === 'pinch' ? 2.4 : 1.4;
+        ctx.beginPath();
+        ctx.arc(r.x, r.y, r.radius, 0, Math.PI * 2);
+        ctx.stroke();
+
+        if (r.type === 'open') {
+          ctx.strokeStyle = `rgba(157,140,255,${r.alpha * 0.55})`;
+          ctx.beginPath();
+          ctx.arc(r.x, r.y, r.radius * 0.66, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+
+        if (progress > 1 || r.alpha < 0.025) ripples.splice(i, 1);
+      }
+    }
+
+    function drawSparks() {
+      for (let i = sparks.length - 1; i >= 0; i--) {
+        const s = sparks[i];
+        s.x += s.vx;
+        s.y += s.vy;
+        s.vx *= 0.92;
+        s.vy *= 0.92;
+        s.life -= 1;
+        const a = Math.max(0, s.life / s.maxLife);
+
+        ctx.strokeStyle = `rgba(150, 235, 255, ${a * 0.72})`;
+        ctx.lineWidth = s.size;
+        ctx.beginPath();
+        ctx.moveTo(s.x, s.y);
+        ctx.lineTo(s.x - s.vx * 2.5, s.y - s.vy * 2.5);
+        ctx.stroke();
+
+        if (s.life <= 0) sparks.splice(i, 1);
+      }
+    }
+
+    function drawHandAura() {
+      if (gesture === 'none') return;
+      const radiusMap = { open: 170, fist: 72, pinch: 42, one: 116, two: 142 };
+      const r = radiusMap[gesture] || 90;
+
+      const aura = ctx.createRadialGradient(pointer.x, pointer.y, 0, pointer.x, pointer.y, r);
+      aura.addColorStop(0, 'rgba(123, 239, 255, 0.34)');
+      aura.addColorStop(0.45, 'rgba(132, 138, 255, 0.12)');
+      aura.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = aura;
+      ctx.beginPath();
+      ctx.arc(pointer.x, pointer.y, r, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = gesture === 'pinch' ? 'rgba(255,255,255,0.8)' : 'rgba(125, 230, 255, 0.42)';
+      ctx.lineWidth = gesture === 'pinch' ? 2.2 : 1.25;
+      ctx.beginPath();
+      ctx.arc(pointer.x, pointer.y, r * (0.36 + Math.sin(time * 0.06) * 0.045), 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    function drawLaserScan() {
+      if (gesture !== 'one') return;
+      const length = Math.max(width, height);
+      const angle = Math.sin(time * 0.035) * 0.18;
+      ctx.save();
+      ctx.translate(pointer.x, pointer.y);
+      ctx.rotate(angle);
+      const g = ctx.createLinearGradient(-length, 0, length, 0);
+      g.addColorStop(0, 'rgba(102,226,255,0)');
+      g.addColorStop(0.48, 'rgba(102,226,255,0.14)');
+      g.addColorStop(0.5, 'rgba(255,255,255,0.72)');
+      g.addColorStop(0.52, 'rgba(157,140,255,0.14)');
+      g.addColorStop(1, 'rgba(102,226,255,0)');
+      ctx.strokeStyle = g;
+      ctx.lineWidth = 3 + Math.sin(time * 0.2) * 1.3;
+      ctx.beginPath();
+      ctx.moveTo(-length, 0);
+      ctx.lineTo(length, 0);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawTwinVortexGuide() {
+      if (gesture !== 'two') return;
+      for (const side of [-1, 1]) {
+        const x = pointer.x + side * 130;
+        ctx.strokeStyle = 'rgba(119, 228, 255, 0.32)';
+        ctx.lineWidth = 1.2;
+        for (let k = 0; k < 3; k++) {
+          ctx.beginPath();
+          const rr = 35 + k * 26 + Math.sin(time * 0.05 + k) * 5;
+          ctx.ellipse(x, pointer.y, rr, rr * 0.52, time * 0.025 * side, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      }
+    }
+
+    function drawCollapseCore() {
+      if (gesture !== 'fist' && gesture !== 'pinch') return;
+      const spikes = gesture === 'pinch' ? 18 : 11;
+      const base = gesture === 'pinch' ? 52 : 72;
+      ctx.save();
+      ctx.translate(pointer.x, pointer.y);
+      ctx.rotate(time * 0.035);
+      ctx.strokeStyle = gesture === 'pinch' ? 'rgba(255,255,255,0.62)' : 'rgba(122,232,255,0.42)';
+      ctx.lineWidth = 1.2;
+      for (let i = 0; i < spikes; i++) {
+        const a = (Math.PI * 2 / spikes) * i;
+        const inner = base * 0.25;
+        const outer = base * (0.6 + Math.sin(time * 0.12 + i) * 0.12);
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(a) * inner, Math.sin(a) * inner);
+        ctx.lineTo(Math.cos(a) * outer, Math.sin(a) * outer);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function animate() {
+      time += 1;
+      drawBackground();
+      drawRipples();
+      drawHandAura();
+      drawLaserScan();
+      drawTwinVortexGuide();
+      drawCollapseCore();
+
+      for (const p of particles) {
+        p.update();
+        p.draw();
+      }
+
+      drawSparks();
+      requestAnimationFrame(animate);
+    }
+
+    animate();
+
+    function distance(a, b) {
+      const dx = a.x - b.x;
+      const dy = a.y - b.y;
+      const dz = (a.z || 0) - (b.z || 0);
+      return Math.sqrt(dx * dx + dy * dy + dz * dz);
+    }
+
+    function isFingerExtended(landmarks, tip, pip, mcp) {
+      const wrist = landmarks[0];
+      const tipDist = distance(landmarks[tip], wrist);
+      const pipDist = distance(landmarks[pip], wrist);
+      const mcpDist = distance(landmarks[mcp], wrist);
+      return tipDist > pipDist * 1.08 && tipDist > mcpDist * 1.15;
+    }
+
+    function classifyGesture(landmarks) {
+      const index = isFingerExtended(landmarks, 8, 6, 5);
+      const middle = isFingerExtended(landmarks, 12, 10, 9);
+      const ring = isFingerExtended(landmarks, 16, 14, 13);
+      const pinky = isFingerExtended(landmarks, 20, 18, 17);
+      const thumbTip = landmarks[4];
+      const indexTip = landmarks[8];
+      const palmSize = distance(landmarks[5], landmarks[17]);
+      const pinchDistance = distance(thumbTip, indexTip);
+      const extendedCount = [index, middle, ring, pinky].filter(Boolean).length;
+
+      if (pinchDistance < palmSize * 0.53) return 'pinch';
+      if (extendedCount >= 4) return 'open';
+      if (extendedCount === 0) return 'fist';
+      if (index && !middle && !ring && !pinky) return 'one';
+      if (index && middle && !ring && !pinky) return 'two';
+      return 'open';
+    }
+
+    function setGesture(next) {
+      const now = performance.now();
+      if (next !== gesture && now - lastGestureUpdate < 120) return;
+      if (next === gesture) return;
+
+      previousGesture = gesture;
+      gesture = next;
+      lastGestureUpdate = now;
+
+      gestureText.textContent = gestureInfo[next]?.text || '识别中';
+      modeText.textContent = gestureInfo[next]?.mode || 'Reactive';
+
+      if (next !== 'none') {
+        spawnRipple(pointer.x, pointer.y, next);
+      }
+      if (next === 'open') spawnSparks(pointer.x, pointer.y, 34, 1.25);
+      if (next === 'fist') spawnSparks(pointer.x, pointer.y, 20, 0.75);
+      if (next === 'pinch') spawnSparks(pointer.x, pointer.y, 44, 1.55);
+      if (next === 'two') spawnSparks(pointer.x - 130, pointer.y, 12, 0.85), spawnSparks(pointer.x + 130, pointer.y, 12, 0.85);
+    }
+
+    async function startTracking() {
+      permission.classList.add('hidden');
+
+      const hands = new Hands({
+        locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+      });
+
+      hands.setOptions({
+        maxNumHands: 1,
+        modelComplexity: 0,
+        minDetectionConfidence: 0.68,
+        minTrackingConfidence: 0.62
+      });
+
+      hands.onResults(results => {
+        if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) {
+          hand = null;
+          pointer.strength += (0 - pointer.strength) * 0.08;
+          setGesture('none');
+          return;
+        }
+
+        hand = results.multiHandLandmarks[0];
+        const palm = hand[9];
+        const targetX = (1 - palm.x) * width;
+        const targetY = palm.y * height;
+        pointer.x += (targetX - pointer.x) * 0.32;
+        pointer.y += (targetY - pointer.y) * 0.32;
+        pointer.strength += (1 - pointer.strength) * 0.18;
+        setGesture(classifyGesture(hand));
+      });
+
+      const camera = new Camera(video, {
+        onFrame: async () => {
+          await hands.send({ image: video });
+        },
+        width: 480,
+        height: 360
+      });
+
+      try {
+        await camera.start();
+      } catch (error) {
+        permission.classList.remove('hidden');
+        permission.querySelector('h2').textContent = '摄像头启动失败';
+        permission.querySelector('p').textContent = '请确认浏览器允许摄像头权限，并使用 HTTPS 或 localhost 运行页面。';
+      }
+    }
+
+    startBtn.addEventListener('click', startTracking);
+  </script>
+</body>
+</html>
