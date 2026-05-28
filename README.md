@@ -1,118 +1,107 @@
-Gesture Particle Light Interaction
+# Hand Light Particle Field
 
-A browser-based interactive particle light effect controlled by real-time hand gestures. The project uses the webcam to detect hand movements and changes the particle system according to different gestures, creating a futuristic visual interaction experience.
+一个基于浏览器摄像头手势识别的粒子光效交互 Demo。页面会通过 MediaPipe Hands 在本地识别手部动作，并把不同手势映射成粒子爆散、核心坍缩、激光扫描、双涡旋等动态效果。
 
-Project Overview
+> 识别过程在浏览器端完成，摄像头画面仅用于实时手部追踪。
 
-This project is an experimental web interaction demo that combines hand tracking, particle animation, and light effects. After the user allows camera access, the webpage captures hand landmarks in real time and classifies simple hand gestures. Each gesture triggers a different particle behaviour, such as expansion, contraction, vortex movement, laser scanning, and core collapse.
+## 效果预览
 
-The main goal of this project is to create a visually engaging interface where users can control digital particles through natural hand movements instead of using a mouse or keyboard.
+<table>
+  <tr>
+    <td width="50%">
+      <img src="./assets/1.png" alt="启动手势粒子交互" />
+      <br />
+      <sub>启动页：请求摄像头权限并进入手势捕捉</sub>
+    </td>
+    <td width="50%">
+      <img src="./assets/2.png" alt="张开手掌触发 Burst 粒子爆散" />
+      <br />
+      <sub>张开手掌：粒子向外爆散扩张</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <img src="./assets/3.png" alt="捏合触发 Core Crush 核心坍缩" />
+      <br />
+      <sub>捏合：粒子向核心坍缩并形成旋涡</sub>
+    </td>
+    <td width="50%">
+      <img src="./assets/4.png" alt="双指触发 Twin Vortex 双涡旋" />
+      <br />
+      <sub>双指：左右双涡旋牵引粒子流动</sub>
+    </td>
+  </tr>
+</table>
 
-Main Features
+## 功能亮点
 
-Real-time Hand Tracking
+- 实时手势识别：使用 MediaPipe Hands 追踪手部关键点。
+- 粒子系统：Canvas 2D 绘制粒子、尾迹、波纹、星尘和光环。
+- 多种手势模式：不同手势触发不同粒子运动规则。
+- 轻量单页实现：所有核心逻辑都在 `index.html` 中，无需构建工具。
+- 响应式界面：桌面端展示摄像头预览和状态面板，移动端自动简化布局。
 
-The webpage uses the user’s webcam to detect hand position and hand landmarks in real time. The detected palm position becomes the main control point for the particle system.
+## 手势映射
 
-Gesture-based Particle Reactions
+| 手势 | 粒子模式 | 效果 |
+| --- | --- | --- |
+| 未检测到手 | Ambient | 粒子回到星空漂浮状态 |
+| 张开手掌 | Burst | 粒子向外爆散，并触发扩散波纹 |
+| 握拳 | Collapse | 粒子向掌心收缩，形成星云核心 |
+| 单指 | Laser Scan | 粒子靠近扫描光束，生成激光线效果 |
+| 双指 | Twin Vortex | 左右两个涡旋中心牵引粒子流 |
+| 捏合 | Core Crush | 粒子强力坍缩到核心，并产生高亮爆发 |
 
-Different hand gestures create different visual effects:
+## 快速开始
 
-Gesture	Particle Effect
-Open palm	Particles burst outward with ripple effects
-Fist	Particles collapse toward the hand position
-Pinch	Particles strongly compress into a bright core
-One finger	A laser scanning beam appears across the particle field
-Two fingers	Particles form a twin vortex movement
-No hand detected	Particles return to ambient floating mode
+这个 Demo 需要通过 `localhost` 或 HTTPS 运行，浏览器才会允许摄像头权限。不要直接双击打开本地 HTML 文件。
 
-Light and Motion Effects
+```bash
+python3 -m http.server 8000
+```
 
-The project includes several visual effects to make the interaction more dynamic:
+然后在浏览器访问：
 
-* Particle motion trails
-* Expanding ripple rings
-* Spark burst effects
-* Hand aura glow
-* Laser scan line
-* Twin vortex guide rings
-* Core collapse animation
-* Animated radial background lighting
+```text
+http://localhost:8000
+```
 
-Performance Optimisation
+点击「启动手部捕捉」，允许摄像头权限后即可体验。
 
-The first version used a large number of particles and heavy glow rendering. The updated version improves performance by:
+## 项目结构
 
-* Reducing the number of particles
-* Avoiding expensive radial gradients for every particle
-* Using motion trails instead of heavy glow rendering
-* Lowering hand tracking model complexity
-* Reducing webcam input resolution
-* Limiting the number of spark particles
-
-These changes make the animation smoother while still keeping the visual effect strong.
-
-Technologies Used
-
-* HTML5
-* CSS3
-* JavaScript
-* Canvas API
-* MediaPipe Hands
-* Webcam API
-
-How to Run
-
-Option 1: Run with VS Code Live Server
-
-1. Create a project folder.
-2. Save the webpage code as index.html.
-3. Open the folder in VS Code.
-4. Install the Live Server extension.
-5. Right-click index.html and select Open with Live Server.
-6. Click Start Hand Tracking on the webpage.
-7. Allow camera permission in the browser.
-
-Option 2: Run with Localhost
-
-You can also run the page through any local development server. For example, if Python is installed, open the project folder in Terminal and run:
-
-python3 -m http.server 5500
-
-Then open the following address in your browser:
-
-http://localhost:5500
-
-Important Notes
-
-Camera access may not work if the file is opened directly with file://. It is recommended to run the page using Live Server or localhost.
-
-For best performance, use a modern browser such as Google Chrome, Microsoft Edge, or Safari. A well-lit environment also helps improve hand tracking accuracy.
-
-Interaction Design
-
-The interaction is designed around natural hand movement. Instead of clicking buttons, the user controls the particle field by changing hand gestures. This creates a more immersive and futuristic experience.
-
-The palm position is used as the central point of interaction. When the user moves their hand, the particles follow or react around that position. The gesture type then determines how the particles behave.
-
-For example, when the user opens their hand, the particles expand outward like an energy burst. When the user makes a fist, the particles contract toward the hand as if being pulled by gravity. When the user pinches their fingers, the particles collapse into a bright core.
-
-File Structure
-
+```text
 GestureParticleDemo/
 ├── index.html
-└── README.md
+├── README.md
+└── assets/
+    ├── 1.png
+    ├── 2.png
+    ├── 3.png
+    └── 4.png
+```
 
-Possible Future Improvements
+## 技术栈
 
-* Add support for two-hand interaction
-* Add sound effects based on gesture changes
-* Add custom colour themes
-* Add screenshot or recording function
-* Add more gesture types
-* Add UI controls for particle density and speed
-* Convert the project into a React version
+- HTML / CSS / JavaScript
+- Canvas 2D
+- MediaPipe Hands
+- MediaPipe Camera Utils
 
-Author
+## 实现说明
 
-Created as an interactive web visualisation project using hand gesture recognition and canvas-based particle animation.
+- 手势识别基于 21 个手部关键点，结合指尖、指节和掌宽距离进行简单分类。
+- 粒子数量会根据屏幕宽度调整，移动端使用更少粒子来保持流畅。
+- 粒子效果包含速度衰减、轨迹尾迹、旋涡牵引、径向波纹和状态切换爆发。
+- 依赖通过 CDN 加载，需要网络连接才能首次加载 MediaPipe 脚本。
+
+## 浏览器要求
+
+- 推荐使用 Chrome、Edge 或 Safari 的较新版本。
+- 需要可用摄像头。
+- 需要在 `localhost` 或 HTTPS 环境下运行。
+
+## 文件说明
+
+- `index.html`：主页面，包含样式、粒子动画、手势识别和交互逻辑。
+- `assets/*.png`：README 中使用的效果截图。
